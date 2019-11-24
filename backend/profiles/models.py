@@ -4,7 +4,7 @@ from django.utils import timezone
 
 
 class User(AbstractUser):
-    about = models.CharField('О себе', max_length=1023, null=True, blank=True)
+    about = models.CharField('О себе', max_length=1023, null=True, blank=True, default='')
 
     class Meta:
         db_table = 'User'
