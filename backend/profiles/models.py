@@ -2,9 +2,25 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
+from profiles.exceptions import MemberException
+
 
 class User(AbstractUser):
     about = models.CharField('О себе', max_length=1023, null=True, blank=True, default='')
+
+    def can_manage_team_member(self, team, user):
+        try:
+            membership = Membership.objects.get(team=team, user=user)
+            self_membership = Membership.objects.get(team=team, user=self)
+            if self == user:
+                return False
+            if self_membership.is_manager and not membership.is_manager:
+                return True
+            if self_membership.is_creator and membership.is_manager:
+                return True
+        except Membership.DoesNotExist:
+            return False
+        return False
 
     class Meta:
         db_table = 'User'
@@ -15,7 +31,7 @@ class User(AbstractUser):
 class Team(models.Model):
     id = models.AutoField(primary_key=True)
     team = models.ForeignKey("self", on_delete=models.CASCADE, related_name='groups', null=True, blank=True)
-    is_group = models.BooleanField('Is team?', default=True)
+    is_group = models.BooleanField('Is team?', default=False)
     name = models.CharField('Team name', max_length=255,
                             help_text='Team name max_length=255')
     description = models.CharField('Team description', max_length=1023,
@@ -26,16 +42,28 @@ class Team(models.Model):
     def __str__(self):
         return self.name
 
+    def is_member(self, user: User):
+        return self.members.filter(user=user).exists()
+
+    def can_be_member(self, user):
+        if self.is_member(user):
+            raise MemberException("User is already a member of the team")
+        if self.is_group and not self.team.is_member(user):
+            raise MemberException("User is not a member of the main team")
+        return True
+
     class Meta:
         db_table = 'teams'
         verbose_name = 'Team'
         verbose_name_plural = 'Teams'
+        ordering = ['-date_created']
 
 
 class Membership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Member', related_name='memberships')
     team = models.ForeignKey(Team, on_delete=models.CASCADE, verbose_name='Team', related_name='members')
     is_manager = models.BooleanField('Is manager?', default=False)
+    is_creator = models.BooleanField('Is manager?', default=False)
     date_started = models.DateTimeField('Date created', default=timezone.now)
 
     def __str__(self):
@@ -46,3 +74,5 @@ class Membership(models.Model):
         unique_together = ['team', 'user']
         verbose_name = 'Membership'
         verbose_name_plural = 'Memberships'
+        ordering = ['-date_started']
+
