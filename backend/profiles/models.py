@@ -9,6 +9,8 @@ class User(AbstractUser):
     about = models.CharField('О себе', max_length=1023, null=True, blank=True, default='')
 
     def can_manage_team_member(self, team, user):
+        if self == team.team_creator:
+            return True
         try:
             membership = Membership.objects.get(team=team, user=user)
             self_membership = Membership.objects.get(team=team, user=self)
@@ -46,11 +48,21 @@ class Team(models.Model):
         return self.members.filter(user=user).exists()
 
     def can_be_member(self, user):
+        if self.is_group and not self.team.is_member(user):
+            raise MemberException("User is not a member of the team( can't be added to the group)")
         if self.is_member(user):
             raise MemberException("User is already a member of the team")
+        if user == self.team_creator:
+            return True
         if self.is_group and not self.team.is_member(user):
             raise MemberException("User is not a member of the main team")
         return True
+
+    @property
+    def team_creator(self):
+        if self.is_group:
+            return Membership.objects.get(team=self.team, is_creator=True).user
+        return Membership.objects.get(team=self, is_creator=True).user
 
     class Meta:
         db_table = 'teams'
@@ -68,6 +80,10 @@ class Membership(models.Model):
 
     def __str__(self):
         return f'{self.user}:{self.team}'
+
+    @property
+    def is_manager_creator(self):
+        return self.is_manager and self.is_creator
 
     class Meta:
         db_table = 'membership'

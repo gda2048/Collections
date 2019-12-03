@@ -1,4 +1,3 @@
-
 from allauth.account.models import EmailConfirmationHMAC
 from django.http import HttpResponseRedirect
 from django.urls import reverse_lazy
@@ -10,7 +9,7 @@ from rest_framework.serializers import Serializer
 from profiles.exceptions import MemberException
 from profiles.models import Team, Membership, User
 from serializers import TeamSerializer, GroupSerializer
-from profiles.permissions import IsTeamOrGroupCreator, IsTeamOrGroupManager
+from profiles.permissions import IsTeamOrGroupCreator, IsTeamOrGroupManager, IsTeamOrGroupMember
 
 
 def confirm_email(request, key):
@@ -30,6 +29,10 @@ class TeamViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = [permissions.IsAuthenticated]
+        if self.action in ['update', 'destroy']:
+            permission_classes += [IsTeamOrGroupCreator]
+        if self.action in ['retrieve']:
+            permission_classes += [IsTeamOrGroupMember]
         return [permission() for permission in permission_classes]
 
     def create(self, request, *args, **kwargs):
@@ -41,6 +44,16 @@ class TeamViewSet(viewsets.ModelViewSet):
             Membership.objects.create(team=obj, user=request.user, is_manager=True, is_creator=True).save()
             return Response(serializer(obj).data)
         return Response(team.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer_class()
+        queryset = Team.objects.filter(id__in=request.user.memberships.values_list('team__id'), is_group=False)
+        page = self.paginate_queryset(queryset)
+        if page is not None and request.GET.get('page') is not None:
+            chats = serializer(page, many=True)
+            return self.get_paginated_response(chats.data)
+        chats = serializer(queryset, many=True)
+        return Response(chats.data)
 
     @action(detail=True, methods=['post'], url_path='add_group', url_name='add_group', serializer_class=GroupSerializer,
             permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupManager])
@@ -85,6 +98,9 @@ class TeamViewSet(viewsets.ModelViewSet):
             team = self.get_object()
             membership = Membership.objects.get(user=user, team=team)
             if request.user.can_manage_team_member(team, user):
+                if not team.is_group:
+                    for group in team.groups.all():
+                        Membership.objects.filter(user=user, team=group).delete()
                 membership.delete()
             else:
                 return Response(data={'errors': ['User can\'t manage this team member']},
