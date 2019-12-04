@@ -8,8 +8,10 @@ from rest_framework.serializers import Serializer
 
 from profiles.exceptions import MemberException
 from profiles.models import Team, Membership, User
-from serializers import TeamSerializer, GroupSerializer
 from profiles.permissions import IsTeamOrGroupCreator, IsTeamOrGroupManager, IsTeamOrGroupMember
+from profiles.serializers import TeamSerializer, GroupSerializer
+from projects.models import Item, Collection
+from projects.serializers import BacklogSerializer, ItemSerializer, CollectionSerializer, TeamCollectionsSerializer
 
 
 def confirm_email(request, key):
@@ -29,15 +31,17 @@ class TeamViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         permission_classes = [permissions.IsAuthenticated]
-        if self.action in ['update', 'destroy']:
+        if self.action in ['update', 'destroy', 'member_to_manager', 'manager_to_member']:
             permission_classes += [IsTeamOrGroupCreator]
-        if self.action in ['retrieve']:
+        if self.action in ['retrieve', 'get_backlog', 'collections']:
             permission_classes += [IsTeamOrGroupMember]
+        if self.action in ['add_group', 'del_member', 'add_member', 'add_item', 'add_collection']:
+            permission_classes += [IsTeamOrGroupManager]
         return [permission() for permission in permission_classes]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer_class()
-        team = serializer(data=request.data )
+        team = serializer(data=request.data)
         if team.is_valid():
             obj = Team(**team.validated_data)
             obj.save()
@@ -55,8 +59,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         chats = serializer(queryset, many=True)
         return Response(chats.data)
 
-    @action(detail=True, methods=['post'], url_path='add_group', url_name='add_group', serializer_class=GroupSerializer,
-            permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupManager])
+    @action(detail=True, methods=['post'], url_path='add_group', url_name='add_group', serializer_class=GroupSerializer)
     def add_group(self, request, pk=None):
         team = self.get_object()
         serializer = self.get_serializer_class()
@@ -73,8 +76,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         return Response(team.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='add_member/(?P<username>[^/.]+)',
-            url_name='add_member', serializer_class=Serializer,
-            permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupManager])
+            url_name='add_member', serializer_class=Serializer)
     def add_member(self, request, username, pk=None):
         try:
             user = User.objects.get(username=username)
@@ -90,8 +92,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         return Response(TeamSerializer(team).data)
 
     @action(detail=True, methods=['delete'], url_path='del_member/(?P<username>[^/.]+)',
-            url_name='del_member', serializer_class=Serializer,
-            permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupManager])
+            url_name='del_member', serializer_class=Serializer)
     def del_member(self, request, username, pk=None):
         try:
             user = User.objects.get(username=username)
@@ -114,8 +115,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         return Response(TeamSerializer(team).data)
 
     @action(detail=True, methods=['put'], url_path='member_to_manager/(?P<username>[^/.]+)',
-            url_name='member_to_manager', serializer_class=Serializer,
-            permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupCreator])
+            url_name='member_to_manager', serializer_class=Serializer)
     def member_to_manager(self, request, username, pk=None):
         try:
             user = User.objects.get(username=username)
@@ -134,8 +134,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         return Response(TeamSerializer(team).data)
 
     @action(detail=True, methods=['put'], url_path='manager_to_member/(?P<username>[^/.]+)',
-            url_name='manager_to_member', serializer_class=Serializer,
-            permission_classes=[permissions.IsAuthenticated, IsTeamOrGroupCreator])
+            url_name='manager_to_member', serializer_class=Serializer)
     def manager_to_member(self, request, username, pk=None):
         try:
             user = User.objects.get(username=username)
@@ -148,7 +147,55 @@ class TeamViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response(data={'errors': ['User is not found']}, status=status.HTTP_404_NOT_FOUND)
         except Team.DoesNotExist:
-            return Response(data={'errors': ['User is not found']}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
         except Membership.DoesNotExist:
             return Response(data={'errors': ['User is not a member of the team']}, status=status.HTTP_404_NOT_FOUND)
         return Response(TeamSerializer(team).data)
+
+    @action(detail=True, methods=['get'], url_path='backlog', url_name='get_backlog',
+            serializer_class=Serializer)
+    def get_backlog(self, request, pk=None):
+        try:
+            team = self.get_object()
+            return Response(BacklogSerializer(team.backlog).data)
+        except Team.DoesNotExist:
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='add_item', url_name='add_item',
+            serializer_class=ItemSerializer)
+    def add_item(self, request, pk=None):
+        try:
+            team = self.get_object()
+            user = request.user
+            item = ItemSerializer(data=request.data)
+            if item.is_valid():
+                item = Item(**item.validated_data, creator=request.user, backlog=team.backlog)
+                item.save()
+                return Response(ItemSerializer(item).data)
+            return Response(item.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Team.DoesNotExist:
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['get'], url_path='collections', url_name='collections',
+            serializer_class=Serializer)
+    def collections(self, request, pk=None):
+        try:
+            team = self.get_object()
+            return Response(TeamCollectionsSerializer(team).data)
+        except Team.DoesNotExist:
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['post'], url_path='add_collection', url_name='add_collection',
+                serializer_class=CollectionSerializer)
+    def add_collection(self, request, pk=None):
+        try:
+            team = self.get_object()
+            user = request.user
+            collection = CollectionSerializer(data=request.data)
+            if collection.is_valid():
+                collection = Collection(**collection.validated_data, team=team)
+                collection.save()
+                return Response(CollectionSerializer(collection).data)
+            return Response(collection.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Team.DoesNotExist:
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)

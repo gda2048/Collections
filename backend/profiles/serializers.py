@@ -45,3 +45,4 @@ class TeamSerializer(serializers.ModelSerializer):
         model = Team
         fields = ('pk', 'team', 'name', 'description', 'members', 'groups', 'is_group', 'date_created')
         read_only_fields = ('is_group', 'date_created')
+

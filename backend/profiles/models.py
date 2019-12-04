@@ -1,5 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 
 from profiles.exceptions import MemberException
@@ -60,6 +62,7 @@ class Team(models.Model):
 
     @property
     def team_creator(self):
+        """returns creator of the main team"""
         if self.is_group:
             return Membership.objects.get(team=self.team, is_creator=True).user
         return Membership.objects.get(team=self, is_creator=True).user
@@ -91,4 +94,3 @@ class Membership(models.Model):
         verbose_name = 'Membership'
         verbose_name_plural = 'Memberships'
         ordering = ['-date_started']
-
