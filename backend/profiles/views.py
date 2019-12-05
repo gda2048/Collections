@@ -128,7 +128,7 @@ class TeamViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             return Response(data={'errors': ['User is not found']}, status=status.HTTP_404_NOT_FOUND)
         except Team.DoesNotExist:
-            return Response(data={'errors': ['User is not found']}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
         except Membership.DoesNotExist:
             return Response(data={'errors': ['User is not a member of the team']}, status=status.HTTP_404_NOT_FOUND)
         return Response(TeamSerializer(team).data)
@@ -186,7 +186,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response(data={'errors': ['Team is not found']}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=True, methods=['post'], url_path='add_collection', url_name='add_collection',
-                serializer_class=CollectionSerializer)
+            serializer_class=CollectionSerializer)
     def add_collection(self, request, pk=None):
         try:
             team = self.get_object()

@@ -40,9 +40,14 @@ class TeamSerializer(serializers.ModelSerializer):
     members = MemberSerializer(many=True, read_only=True)
     team = serializers.PrimaryKeyRelatedField(read_only=True)
     groups = GroupSerializer(many=True, read_only=True)
+    creator = serializers.SerializerMethodField()
+
+    def get_creator(self, instance):
+        return UserDetailsSerializer(instance.team_creator).data
 
     class Meta:
         model = Team
-        fields = ('pk', 'team', 'name', 'description', 'members', 'groups', 'is_group', 'date_created')
-        read_only_fields = ('is_group', 'date_created')
+        fields = ('pk', 'team', 'name', 'description', 'members',
+                  'groups', 'is_group', 'date_created', 'creator')
+        read_only_fields = ('is_group', 'date_created', 'creator')
 
