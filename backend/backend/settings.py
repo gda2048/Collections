@@ -188,3 +188,5 @@ STATIC_URL = '/static/'
 REST_AUTH_SERIALIZERS = {
     "USER_DETAILS_SERIALIZER": "profiles.serializers.UserDetailsSerializer",
 }
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
