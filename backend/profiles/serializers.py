@@ -1,12 +1,14 @@
-from projects.models import List
-from profiles.models import User, Team, Membership
 from rest_framework import serializers
+
+from profiles.models import User, Team, Membership
+from projects.models import List, Item
 
 
 class UserAssignedItemsSerializer(serializers.ModelSerializer):
     """
     User model w/o password
     """
+
     class Meta:
         model = User
         fields = ('pk', 'username', 'email', 'first_name', 'last_name', 'about', 'date_joined')
@@ -60,6 +62,7 @@ class UserDetailsSerializer(serializers.ModelSerializer):
     """
     TODO rewrite serializer (it is the same as projects.serializer.ItemSerializer)
     """
+
     class ItemSerializer(serializers.ModelSerializer):
         class ListSerializer(serializers.ModelSerializer):
             class Meta:
@@ -74,9 +77,17 @@ class UserDetailsSerializer(serializers.ModelSerializer):
         start_date = serializers.DateTimeField(read_only=True)
         last_change = serializers.DateTimeField(read_only=True)
         end_date = serializers.DateTimeField()
+
+        class Meta:
+            model = Item
+            fields = ('pk', 'name', 'description', 'units', 'start_date', 'end_date', 'last_change', 'assigned_user',
+                      'creator', 'backlog', 'list')
+            read_only_fields = ('start_date', 'last_change', 'assigned_user', 'creator', 'backlog',
+                                'list')
+
     assigned_items = ItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ('pk', 'username', 'email', 'first_name', 'last_name', 'about', 'date_joined')
+        fields = ('pk', 'username', 'email', 'first_name', 'last_name', 'about', 'date_joined', 'assigned_items')
         read_only_fields = ('email', 'date_joined')
