@@ -1,7 +1,7 @@
 from profiles.models import Team
 from projects.models import Item, List, Collection, Backlog
 from rest_framework import serializers
-from profiles.serializers import UserDetailsSerializer, TeamSerializer, MemberSerializer
+from profiles.serializers import UserAssignedItemsSerializer, TeamSerializer, MemberSerializer
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -12,8 +12,8 @@ class ItemSerializer(serializers.ModelSerializer):
             read_only_fields = ('name',)
 
     backlog = serializers.PrimaryKeyRelatedField(read_only=True)
-    creator = UserDetailsSerializer(read_only=True)
-    assigned_user = UserDetailsSerializer(read_only=True)
+    creator = UserAssignedItemsSerializer(read_only=True)
+    assigned_user = UserAssignedItemsSerializer(read_only=True)
     list = ListSerializer(read_only=True)
     start_date = serializers.DateTimeField(read_only=True)
     last_change = serializers.DateTimeField(read_only=True)
@@ -56,7 +56,7 @@ class CollectionSerializer(serializers.ModelSerializer):
         creator = serializers.SerializerMethodField()
 
         def get_creator(self, instance):
-            return UserDetailsSerializer(instance.team_creator).data
+            return UserAssignedItemsSerializer(instance.team_creator).data
 
         class Meta:
             model = Team

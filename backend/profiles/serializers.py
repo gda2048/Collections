@@ -1,8 +1,9 @@
+from projects.models import List
 from profiles.models import User, Team, Membership
 from rest_framework import serializers
 
 
-class UserDetailsSerializer(serializers.ModelSerializer):
+class UserAssignedItemsSerializer(serializers.ModelSerializer):
     """
     User model w/o password
     """
@@ -13,7 +14,7 @@ class UserDetailsSerializer(serializers.ModelSerializer):
 
 
 class MemberSerializer(serializers.ModelSerializer):
-    user = UserDetailsSerializer(read_only=True)
+    user = UserAssignedItemsSerializer(read_only=True)
 
     class Meta:
         model = Membership
@@ -43,7 +44,7 @@ class TeamSerializer(serializers.ModelSerializer):
     creator = serializers.SerializerMethodField()
 
     def get_creator(self, instance):
-        return UserDetailsSerializer(instance.team_creator).data
+        return UserAssignedItemsSerializer(instance.team_creator).data
 
     class Meta:
         model = Team
@@ -51,3 +52,31 @@ class TeamSerializer(serializers.ModelSerializer):
                   'groups', 'is_group', 'date_created', 'creator')
         read_only_fields = ('is_group', 'date_created', 'creator')
 
+
+class UserDetailsSerializer(serializers.ModelSerializer):
+    """
+    User model w/o password and with assigned tasks
+    """
+    """
+    TODO rewrite serializer (it is the same as projects.serializer.ItemSerializer)
+    """
+    class ItemSerializer(serializers.ModelSerializer):
+        class ListSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = List
+                fields = ('pk', 'name')
+                read_only_fields = ('name',)
+
+        backlog = serializers.PrimaryKeyRelatedField(read_only=True)
+        creator = UserAssignedItemsSerializer(read_only=True)
+        assigned_user = UserAssignedItemsSerializer(read_only=True)
+        list = ListSerializer(read_only=True)
+        start_date = serializers.DateTimeField(read_only=True)
+        last_change = serializers.DateTimeField(read_only=True)
+        end_date = serializers.DateTimeField()
+    assigned_items = ItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = ('pk', 'username', 'email', 'first_name', 'last_name', 'about', 'date_joined')
+        read_only_fields = ('email', 'date_joined')
