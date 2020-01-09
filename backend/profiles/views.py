@@ -33,9 +33,9 @@ class TeamViewSet(viewsets.ModelViewSet):
         permission_classes = [permissions.IsAuthenticated]
         if self.action in ['update', 'destroy', 'member_to_manager', 'manager_to_member']:
             permission_classes += [IsTeamOrGroupCreator]
-        if self.action in ['retrieve', 'get_backlog', 'collections']:
+        if self.action in ['retrieve', 'get_backlog', 'collections', 'add_device']:
             permission_classes += [IsTeamOrGroupMember]
-        if self.action in ['add_group', 'del_member', 'add_member', 'add_item', 'add_collection', 'add_device']:
+        if self.action in ['add_group', 'del_member', 'add_member', 'add_item', 'add_collection']:
             permission_classes += [IsTeamOrGroupManager]
         return [permission() for permission in permission_classes]
 
