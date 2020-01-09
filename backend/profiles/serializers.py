@@ -40,10 +40,17 @@ class GroupSerializer(serializers.ModelSerializer):
     Group serializer
     """
     members = MemberSerializer(many=True, read_only=True)
+    device = serializers.SerializerMethodField(read_only=True)
+
+    def get_device(self, instance):
+        if instance.device.all():
+            return DeviceSerializer(instance.device.all(), many=True).data
+        else:
+            return None
 
     class Meta:
         model = Team
-        fields = ('pk', 'name', 'description', 'members', 'is_group', 'date_created')
+        fields = ('pk', 'name', 'description', 'members', 'is_group', 'date_created', 'device')
         read_only_fields = ('is_group', 'date_created')
 
 
