@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from profiles.models import User, Team, Membership
+from profiles.models import User, Team, Membership, Device
 from projects.models import List, Item
 
 
@@ -13,6 +13,17 @@ class UserAssignedItemsSerializer(serializers.ModelSerializer):
         model = User
         fields = ('pk', 'username', 'email', 'first_name', 'last_name', 'about', 'date_joined')
         read_only_fields = ('email', 'date_joined')
+
+
+class DeviceSerializer(serializers.ModelSerializer):
+    """
+    Device model serializer
+    """
+    team = serializers.PrimaryKeyRelatedField(read_only=True, allow_empty=True, allow_null=True)
+
+    class Meta:
+        model = Device
+        fields = ('team', 'temperature', 'humidity', 'dosimeter', 'message', 'result')
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -44,14 +55,22 @@ class TeamSerializer(serializers.ModelSerializer):
     team = serializers.PrimaryKeyRelatedField(read_only=True)
     groups = GroupSerializer(many=True, read_only=True)
     creator = serializers.SerializerMethodField()
+    device = serializers.SerializerMethodField(read_only=True)
 
     def get_creator(self, instance):
         return UserAssignedItemsSerializer(instance.team_creator).data
 
+    def get_device(self, instance):
+        if instance.device.all():
+            return DeviceSerializer(instance.device.all(), many=True).data
+        else:
+            return None
+
+
     class Meta:
         model = Team
         fields = ('pk', 'team', 'name', 'description', 'members',
-                  'groups', 'is_group', 'date_created', 'creator')
+                  'groups', 'is_group', 'date_created', 'creator', 'device')
         read_only_fields = ('is_group', 'date_created', 'creator')
 
 

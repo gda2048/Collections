@@ -94,3 +94,17 @@ class Membership(models.Model):
         verbose_name = 'Membership'
         verbose_name_plural = 'Memberships'
         ordering = ['-date_started']
+
+
+class Device(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='device', unique=True)
+    temperature = models.CharField(max_length=10)
+    humidity = models.CharField(max_length=10)
+    dosimeter = models.CharField(max_length=10)
+    message = models.CharField(max_length=255, blank=True)
+    result = models.SmallIntegerField(null=True)
+
+    class Meta:
+        db_table = 'device'
+        verbose_name = 'Device'
+        verbose_name_plural = 'Devices'

@@ -7,9 +7,9 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
 from profiles.exceptions import MemberException
-from profiles.models import Team, Membership, User
+from profiles.models import Team, Membership, User, Device
 from profiles.permissions import IsTeamOrGroupCreator, IsTeamOrGroupManager, IsTeamOrGroupMember
-from profiles.serializers import TeamSerializer, GroupSerializer
+from profiles.serializers import TeamSerializer, GroupSerializer, DeviceSerializer
 from projects.models import Item, Collection
 from projects.serializers import BacklogSerializer, ItemSerializer, CollectionSerializer, TeamCollectionsSerializer
 
@@ -35,7 +35,7 @@ class TeamViewSet(viewsets.ModelViewSet):
             permission_classes += [IsTeamOrGroupCreator]
         if self.action in ['retrieve', 'get_backlog', 'collections']:
             permission_classes += [IsTeamOrGroupMember]
-        if self.action in ['add_group', 'del_member', 'add_member', 'add_item', 'add_collection']:
+        if self.action in ['add_group', 'del_member', 'add_member', 'add_item', 'add_collection', 'add_device']:
             permission_classes += [IsTeamOrGroupManager]
         return [permission() for permission in permission_classes]
 
@@ -50,6 +50,13 @@ class TeamViewSet(viewsets.ModelViewSet):
         return Response(team.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, *args, **kwargs):
+        """
+        List of all teams (not groups) in which current user is found
+        :param request:
+        :param args:
+        :param kwargs:
+        :return:
+        """
         serializer = self.get_serializer_class()
         queryset = Team.objects.filter(id__in=request.user.memberships.values_list('team__id'), is_group=False)
         page = self.paginate_queryset(queryset)
@@ -74,6 +81,24 @@ class TeamViewSet(viewsets.ModelViewSet):
             Membership.objects.create(team=obj, user=request.user, is_manager=True, is_creator=True).save()
             return Response(serializer(obj).data)
         return Response(team.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=['put'], url_path='add_device', url_name='add_device',
+            serializer_class=DeviceSerializer)
+    def add_device(self, request, pk=None):
+        team = self.get_object()
+        serializer = self.get_serializer_class()
+        device = serializer(data=request.data)
+        if device.is_valid():
+            if len(team.device.all()):
+                obj = team.device.all()[0]
+            else:
+                obj = Device()
+            obj.team = team
+            for key, value in device.validated_data.items():
+                setattr(obj, key, value)
+            obj.save()
+            return Response(serializer(obj).data)
+        return Response(device.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], url_path='add_member/(?P<username>[^/.]+)',
             url_name='add_member', serializer_class=Serializer)
