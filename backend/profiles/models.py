@@ -98,9 +98,9 @@ class Membership(models.Model):
 
 class Device(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='device', unique=True)
-    temperature = models.CharField(max_length=10)
-    humidity = models.CharField(max_length=10)
-    dosimeter = models.CharField(max_length=10)
+    temperature = models.CharField(max_length=50)
+    humidity = models.CharField(max_length=50)
+    dosimeter = models.CharField(max_length=50)
     message = models.CharField(max_length=255, blank=True)
     result = models.SmallIntegerField(null=True)
 
